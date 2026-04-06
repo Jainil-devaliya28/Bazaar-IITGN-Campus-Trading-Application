@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Bazaar@IITGN{% endblock %}</title>
+  <!-- PWA manifest + theme color -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <meta name="theme-color" content="#2563EB" />
+  <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='image.jpg') }}" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+
+{% if session.member_id %}
+<nav class="navbar" role="navigation" aria-label="Main navigation">
+  <a href="{{ url_for('main.dashboard') }}" class="nav-brand" aria-label="Bazaar at IITGN home">Bazaar<span>@IITGN</span></a>
+  <div class="nav-links">
+    <a href="{{ url_for('main.dashboard') }}"              {% if request.endpoint == 'main.dashboard'         %}class="active" aria-current="page"{% endif %}>Home</a>
+    <a href="{{ url_for('products.marketplace') }}"        {% if request.endpoint == 'products.marketplace'   %}class="active" aria-current="page"{% endif %}>Marketplace</a>
+    <a href="{{ url_for('demands.list_demands') }}"        {% if 'demand'      in request.endpoint            %}class="active" aria-current="page"{% endif %}>Demands</a>
+    <a href="{{ url_for('products.my_listings') }}"        {% if request.endpoint == 'products.my_listings'   %}class="active" aria-current="page"{% endif %}>My Listings</a>
+    <a href="{{ url_for('products.watchlist') }}"          {% if request.endpoint == 'products.watchlist'     %}class="active" aria-current="page"{% endif %}>🔖 Watchlist</a>
+    <a href="{{ url_for('chat.inbox') }}"                  {% if 'chat'        in request.endpoint            %}class="active" aria-current="page"{% endif %}>
+      Messages{% if unread_count > 0 %} <span class="nav-badge" aria-label="{{ unread_count }} unread">{{ unread_count }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('transactions.my_transactions') }}" {% if 'transaction' in request.endpoint            %}class="active" aria-current="page"{% endif %}>Transactions</a>
+    {% if session.role == 'admin' %}
+    <a href="{{ url_for('admin.dashboard') }}" class="admin-link">Admin</a>
+    {% endif %}
+  </div>
+  <div class="nav-user">
+    <!-- Dark/Light/High-Contrast theme toggle -->
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle colour theme" title="Toggle theme">
+      <span id="themeIcon">🌙</span>
+    </button>
+    <a href="{{ url_for('notifs.list_notifications') }}" class="notif-bell" title="Notifications" aria-label="Notifications">
+      🔔
+      {% if notif_count > 0 %}
+      <span class="nav-badge notif-badge" aria-label="{{ notif_count }} unread notifications">{{ notif_count }}</span>
+      {% endif %}
+    </a>
+    <a href="{{ url_for('main.profile', member_id=session.member_id) }}" class="nav-profile">{{ session.name }}</a>
+    <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-outline">Logout</a>
+  </div>
+</nav>
+{% endif %}
+
+<main class="main-content" id="main-content" tabindex="-1">
+  <!-- Skip-to-content link for keyboard accessibility -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-container" role="alert" aria-live="polite">
+        {% for cat, msg in messages %}
+          <div class="alert alert-{{ cat }}">{{ msg }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="footer" role="contentinfo">
+  <p>&copy; 2026 Bazaar@IITGN &mdash; The Community Exchange &mdash; Made by Jainil Devaliya</p>
+</footer>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" class="loading-overlay" role="status" aria-label="Loading" aria-hidden="true">
+  <div class="loading-content">
+    <div class="loading-logo">Bazaar<span>@IITGN</span></div>
+    <div class="loading-lines" aria-hidden="true">
+      <div class="loading-line"></div>
+      <div class="loading-line"></div>
+      <div class="loading-line"></div>
+      <div class="loading-line"></div>
+      <div class="loading-line"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* ── Loading overlay ── */
+.loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:var(--overlay-bg,rgba(247,249,252,.96));backdrop-filter:blur(4px);display:none;justify-content:center;align-items:center;z-index:9999}
+.loading-content{text-align:center;animation:fadeIn .3s ease-in}
+.loading-logo{font-family:'Playfair Display',Georgia,serif;font-size:2.25rem;font-weight:700;color:var(--logo-text, var(--text));margin-bottom:2rem;letter-spacing:-.5px}
+.loading-logo span{color:#2563EB}
+.loading-lines{display:flex;justify-content:center;gap:5px}
+.loading-line{width:4px;height:36px;background:#2563EB;border-radius:2px;animation:loadingPulse 1.5s ease-in-out infinite}
+.loading-line:nth-child(1){animation-delay:0s}.loading-line:nth-child(2){animation-delay:.1s}.loading-line:nth-child(3){animation-delay:.2s}.loading-line:nth-child(4){animation-delay:.3s}.loading-line:nth-child(5){animation-delay:.4s}
+@keyframes fadeIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+@keyframes loadingPulse{0%,80%,100%{transform:scaleY(1);opacity:.3}40%{transform:scaleY(1.6);opacity:1}}
+/* ── Skip link accessibility ── */
+.skip-link{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:-1}
+.skip-link:focus{position:fixed;top:8px;left:8px;width:auto;height:auto;padding:8px 16px;background:#2563EB;color:#fff;border-radius:6px;z-index:10000;font-size:.9rem;font-weight:600}
+</style>
+
+<script>
+// ── Loading overlay ───────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    const overlay = document.getElementById('loading-overlay');
+    const links = document.querySelectorAll('a[href]');
+    links.forEach(link => {
+        if (link.href && link.href.startsWith('http') && !link.href.includes(window.location.origin)) return;
+        if (!link.href || link.href.includes('#')) return;
+        if (link.getAttribute('href') === '#') return;
+        link.addEventListener('click', function(e) {
+            if (this.href === window.location.href) return;
+            if (this.target === '_blank') return;
+            e.preventDefault();
+            overlay.style.display = 'flex';
+            overlay.setAttribute('aria-hidden', 'false');
+            setTimeout(() => { window.location.href = this.href; }, 300);
+        });
+    });
+});
+
+// ── Theme system (dark / light / high-contrast) ───────────────────────────────
+(function() {
+    const btn  = document.getElementById('themeToggle');
+    const icon = document.getElementById('themeIcon');
+    const root = document.documentElement;
+    const THEMES = ['light', 'dark', 'high-contrast'];
+    const ICONS  = { light: '🌙', dark: '🔆', 'high-contrast': '🌗' };
+    const LABELS = { light: 'Switch to dark mode', dark: 'Switch to high-contrast mode', 'high-contrast': 'Switch to light mode' };
+
+    // Restore saved theme or detect OS preference
+    let theme = localStorage.getItem('bazaar-theme');
+    if (!theme) {
+        theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    applyTheme(theme);
+
+    if (btn) {
+        btn.addEventListener('click', function() {
+            const idx = THEMES.indexOf(root.getAttribute('data-theme') || 'light');
+            const next = THEMES[(idx + 1) % THEMES.length];
+            applyTheme(next);
+            localStorage.setItem('bazaar-theme', next);
+        });
+    }
+
+    function applyTheme(t) {
+        root.setAttribute('data-theme', t);
+        if (icon) icon.textContent = ICONS[t] || '🌙';
+        if (btn)  btn.setAttribute('aria-label', LABELS[t] || 'Toggle theme');
+    }
+})();
+
+// ── Service Worker (PWA) ──────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/static/sw.js', { scope: '/' })
+            .then(reg => console.log('SW registered:', reg.scope))
+            .catch(err => console.log('SW error:', err));
+    });
+}
+
+// ── Chat state persistence across reconnects ──────────────────────────────────
+// Restore last-read message ID per conversation from sessionStorage
+// (The /chat/<id>/poll endpoint uses this to only fetch new messages)
+window.BazaarChat = {
+    getLastId: function(partnerId) {
+        return parseInt(sessionStorage.getItem('chat_last_' + partnerId) || '0');
+    },
+    setLastId: function(partnerId, id) {
+        sessionStorage.setItem('chat_last_' + partnerId, id);
+    }
+};
+</script>
+
+</body>
+</html>

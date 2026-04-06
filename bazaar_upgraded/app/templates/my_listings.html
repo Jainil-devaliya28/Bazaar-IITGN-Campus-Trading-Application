@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}My Listings — Bazaar@IITGN{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2>My Listings</h2>
+  <a href="{{ url_for('products.add_product') }}" class="btn btn-primary">+ List New Item</a>
+</div>
+
+<!-- Filter + Summary -->
+<div class="section-header" style="margin-bottom:1rem">
+  <div>
+    <a href="?status=" class="btn btn-sm {% if not status_filter %}btn-primary{% else %}btn-outline{% endif %}">All</a>
+    <a href="?status=available" class="btn btn-sm {% if status_filter == 'available' %}btn-primary{% else %}btn-outline{% endif %}">Available</a>
+    <a href="?status=sold" class="btn btn-sm {% if status_filter == 'sold' %}btn-primary{% else %}btn-outline{% endif %}">Sold</a>
+  </div>
+  {% if total_earned > 0 %}
+  <span style="font-size:13px;color:var(--muted)">Total earned: <strong>₹{{ "%.2f"|format(total_earned) }}</strong></span>
+  {% endif %}
+</div>
+
+{% if products %}
+<div class="table-wrapper">
+<table class="table">
+  <thead>
+    <tr>
+      <th>Item</th>
+      <th>Category</th>
+      <th>Price</th>
+      <th>Status</th>
+      <th>Pending Offers</th>
+      <th>Listed</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for p in products %}
+  <tr>
+    <td>
+      <a href="{{ url_for('products.product_detail', product_id=p.product_id) }}">
+        {{ p.title }}
+      </a>
+      {% if p.is_urgent %}<span class="badge badge-yellow" style="margin-left:4px;font-size:11px">🔥 Urgent</span>{% endif %}
+    </td>
+    <td>{{ p.category or '—' }}</td>
+    <td>₹{{ "%.2f"|format(p.price) }}</td>
+    <td>
+      {% if p.status == 'reserved' %}
+      <span class="badge badge-yellow">Reserved</span>
+      {% elif p.is_available %}
+      <span class="badge badge-green">Available</span>
+      {% else %}
+      <span class="badge badge-red">Sold</span>
+      {% endif %}
+    </td>
+    <td>
+      {% set n = pending_offers.get(p.product_id, 0) %}
+      {% if n > 0 %}
+      <span class="badge badge-blue">{{ n }} offer{% if n != 1 %}s{% endif %}</span>
+      {% else %}
+      <span style="color:var(--muted)">—</span>
+      {% endif %}
+    </td>
+    <td style="white-space:nowrap">{{ p.created_at.strftime('%d %b %Y') }}</td>
+    <td style="white-space:nowrap">
+      <a href="{{ url_for('products.edit_product', product_id=p.product_id) }}" class="btn btn-sm btn-outline">Edit</a>
+      <form method="POST" action="{{ url_for('products.toggle_availability', product_id=p.product_id) }}" style="display:inline">
+        <button class="btn btn-sm btn-outline">{{ 'Relist' if not p.is_available else 'Mark Sold' }}</button>
+      </form>
+      <form method="POST" action="{{ url_for('products.delete_product', product_id=p.product_id) }}"
+            style="display:inline" onsubmit="return confirm('Delete this listing?')">
+        <button class="btn btn-sm btn-danger">Del</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div class="empty-state">
+  <p>No listings found.</p>
+  <a href="{{ url_for('products.add_product') }}" class="btn btn-primary">List your first item</a>
+</div>
+{% endif %}
+{% endblock %}

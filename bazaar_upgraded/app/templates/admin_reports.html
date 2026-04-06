@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Reports — Admin{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2>⚑ Reports Management</h2>
+  <div>
+    <a href="?status=open" class="btn btn-sm {% if status_filter == 'open' %}btn-primary{% else %}btn-outline{% endif %}">Open</a>
+    <a href="?status=reviewed" class="btn btn-sm {% if status_filter == 'reviewed' %}btn-primary{% else %}btn-outline{% endif %}">Reviewed</a>
+    <a href="?status=dismissed" class="btn btn-sm {% if status_filter == 'dismissed' %}btn-primary{% else %}btn-outline{% endif %}">Dismissed</a>
+    <a href="?" class="btn btn-sm btn-outline">All</a>
+  </div>
+</div>
+
+{% if reports %}
+<div class="table-wrapper">
+<table class="table">
+  <thead>
+    <tr><th>Reporter</th><th>Reported User</th><th>Product</th><th>Reason</th><th>Details</th><th>Status</th><th>Date</th><th>Action</th></tr>
+  </thead>
+  <tbody>
+  {% for r in reports %}
+  <tr>
+    <td><a href="{{ url_for('main.profile', member_id=r.reporter_id) }}">{{ r.reporter.name }}</a></td>
+    <td><a href="{{ url_for('main.profile', member_id=r.reported_id) }}">{{ r.reported.name }}</a></td>
+    <td>{% if r.product %}<a href="{{ url_for('products.product_detail', product_id=r.product_id) }}">{{ r.product.title }}</a>{% else %}—{% endif %}</td>
+    <td>{{ r.reason }}</td>
+    <td style="max-width:200px;font-size:12px;color:var(--muted)">{{ r.details or '—' }}</td>
+    <td><span class="badge badge-{{ 'red' if r.status == 'open' else ('green' if r.status == 'reviewed' else 'yellow') }}">{{ r.status }}</span></td>
+    <td>{{ r.created_at.strftime('%d %b %Y') }}</td>
+    <td>
+      {% if r.status == 'open' %}
+      <form method="POST" action="{{ url_for('admin.update_report', report_id=r.report_id) }}" style="display:inline">
+        <input type="hidden" name="status" value="reviewed" />
+        <button class="btn btn-sm btn-primary">Mark Reviewed</button>
+      </form>
+      <form method="POST" action="{{ url_for('admin.update_report', report_id=r.report_id) }}" style="display:inline">
+        <input type="hidden" name="status" value="dismissed" />
+        <button class="btn btn-sm btn-outline">Dismiss</button>
+      </form>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div class="empty-state"><p>No reports found.</p></div>
+{% endif %}
+{% endblock %}

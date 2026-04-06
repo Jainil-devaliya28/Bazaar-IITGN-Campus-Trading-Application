@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Members Directory — CampusTrade{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>👥 Members Directory</h2>
+</div>
+
+<form method="GET" class="filter-bar">
+  <input type="text" name="search" placeholder="Search by name…" value="{{ search }}" class="filter-input" />
+  <button type="submit" class="btn btn-primary">Search</button>
+  <a href="{{ url_for('main.members_directory') }}" class="btn btn-outline">Clear</a>
+</form>
+
+{% if members %}
+<div class="members-grid">
+  {% for m in members %}
+  <a href="{{ url_for('main.profile', member_id=m.member_id) }}" class="member-card">
+    <div class="member-avatar">{{ m.name[0].upper() }}</div>
+    <div class="member-info">
+      <div class="member-name">{{ m.name }} <span class="role-badge role-{{ m.role }}">{{ m.role }}</span></div>
+      {% if m.student and m.student.college_name %}
+      <div class="member-college">🏫 {{ m.student.college_name }}</div>
+      {% endif %}
+      {% if m.student and m.student.department %}
+      <div class="member-college">📚 {{ m.student.department }}</div>
+      {% endif %}
+      <div class="member-joined">Joined {{ m.created_at.strftime('%b %Y') }}</div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state"><p>No members found.</p></div>
+{% endif %}
+{% endblock %}

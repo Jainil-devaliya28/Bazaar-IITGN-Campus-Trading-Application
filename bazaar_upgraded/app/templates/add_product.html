@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block title %}{% if edit_mode %}Edit{% else %}List{% endif %} Product — Bazaar@IITGN{% endblock %}
+{% block content %}
+<div class="page-header"><h2>{% if edit_mode %}Edit Listing{% else %}List an Item{% endif %}</h2></div>
+<div class="form-container">
+  <form method="POST" enctype="multipart/form-data" class="card-form" id="productForm">
+
+    <div class="form-group">
+      <label for="title">Title *</label>
+      <input type="text" id="title" name="title" required maxlength="200"
+             value="{% if product %}{{ product.title }}{% endif %}"
+             placeholder="e.g. MTB Cycle, JEE Books Set, Desk Lamp"
+             aria-required="true" />
+    </div>
+
+    <!-- AI Suggest Box (populated by JS after title/description input) -->
+    <div class="ai-suggest-box" id="aiSuggestBox" role="status" aria-live="polite">
+      <div class="ai-label">✨ AI Suggestion</div>
+      <div id="aiSuggestContent"></div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="category">Category *</label>
+        <select id="category" name="category" required aria-required="true">
+          <option value="">— Select —</option>
+          {% for cat in categories %}
+          <option value="{{ cat }}" {% if product and product.category == cat %}selected{% endif %}>{{ cat }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="condition">Condition *</label>
+        <select id="condition" name="condition">
+          <option value="">— Select —</option>
+          {% for c in conditions %}
+          <option value="{{ c }}" {% if product and product.condition == c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="price">Price (₹) *</label>
+      <input type="number" id="price" name="price" step="0.01" min="0" required
+             value="{% if product %}{{ product.price }}{% endif %}"
+             placeholder="0.00" aria-required="true" />
+      <!-- Price insight: shown after category is selected -->
+      <div id="priceInsight" class="price-insight" style="display:none" role="status" aria-live="polite">
+        <span class="pi-icon">📊</span>
+        <span id="priceInsightText"></span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="description">Description</label>
+      <textarea id="description" name="description" rows="4"
+                placeholder="Describe the item — condition details, age, reason for selling…">{% if product %}{{ product.description or '' }}{% endif %}</textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="tags">Tags <small style="color:var(--muted)">(comma-separated)</small></label>
+      <input type="text" id="tags" name="tags"
+             value="{% if product and product.tags %}{{ product.tags }}{% endif %}"
+             placeholder="e.g. physics, calculus, allen" />
+    </div>
+
+    <div class="form-group">
+      <label for="pickup_point">Preferred Pickup Point</label>
+      <select id="pickup_point" name="pickup_point">
+        <option value="">— Any / Not specified —</option>
+        {% for pt in pickup_points %}
+        <option value="{{ pt }}" {% if product and product.pickup_point == pt %}selected{% endif %}>{{ pt }}</option>
+        {% endfor %}
+        <option value="custom">Other (type below)</option>
+      </select>
+      <input type="text" id="pickup_custom" name="pickup_custom" style="display:none;margin-top:6px"
+             placeholder="Describe pickup location" />
+    </div>
+
+    <div class="form-group">
+      <label for="image">Product Image</label>
+      <input type="file" id="image" name="image" accept="image/*" aria-label="Upload product image" />
+      <small style="color:var(--muted);display:block;margin-top:4px">Images are automatically compressed for fast loading.</small>
+      {% if product and product.image_url %}
+      <div style="margin-top:0.5rem">
+        <img src="{{ product.image_url }}" alt="Current image" style="max-width:120px;border-radius:6px;" />
+        <small style="display:block;color:var(--muted)">Upload new to replace</small>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="form-group">
+      <label class="checkbox-label">
+        <input type="checkbox" id="is_urgent" name="is_urgent"
+               {% if product and product.is_urgent %}checked{% endif %}
+               aria-label="Mark as urgent sale" />
+        <span>🔥 Mark as Urgent Sale</span>
+        <small style="color:var(--muted);display:block;margin-top:2px">Highlights your listing and sorts it to the top</small>
+      </label>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{% if edit_mode %}Save Changes{% else %}Publish Listing{% endif %}</button>
+      <a href="{{ url_for('products.my_listings') }}" class="btn btn-outline">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<script>
+// ── Custom pickup point input toggle ─────────────────────────────────────────
+document.getElementById('pickup_point').addEventListener('change', function() {
+    const custom = document.getElementById('pickup_custom');
+    if (this.value === 'custom') {
+        custom.style.display = 'block';
+        custom.required = true;
+        custom.focus();
+    } else {
+        custom.style.display = 'none';
+        custom.required = false;
+    }
+});
+
+// On submit, merge custom pickup into the select if chosen
+document.getElementById('productForm').addEventListener('submit', function(e) {
+    const sel = document.getElementById('pickup_point');
+    const custom = document.getElementById('pickup_custom');
+    if (sel.value === 'custom' && custom.value.trim()) {
+        // Create a hidden input with the real value
+        const h = document.createElement('input');
+        h.type = 'hidden'; h.name = 'pickup_point'; h.value = custom.value.trim();
+        this.appendChild(h);
+        sel.disabled = true;
+    }
+});
+
+// ── Price Insight via category selection ──────────────────────────────────────
+const catEl = document.getElementById('category');
+const priceInsightEl = document.getElementById('priceInsight');
+const priceInsightText = document.getElementById('priceInsightText');
+
+catEl.addEventListener('change', function() {
+    const cat = this.value;
+    if (!cat) { priceInsightEl.style.display = 'none'; return; }
+    fetch('/products/ai-suggest', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title: document.getElementById('title').value,
+                              description: document.getElementById('description').value})
+    })
+    // Fetch price insight separately using the category
+    .catch(() => {});
+
+    // Use a dedicated price fetch
+    fetch('/api/price-insight?category=' + encodeURIComponent(cat))
+        .then(r => r.json())
+        .then(data => {
+            if (data && data.avg) {
+                priceInsightEl.style.display = 'flex';
+                priceInsightText.innerHTML =
+                    `Campus avg for <strong>${cat}</strong>: <strong>₹${data.avg.toFixed(0)}</strong>` +
+                    ` · Range: ₹${data.min.toFixed(0)}–₹${data.max.toFixed(0)}` +
+                    ` <small>(${data.count} listings)</small>`;
+            } else {
+                priceInsightEl.style.display = 'none';
+            }
+        })
+        .catch(() => { priceInsightEl.style.display = 'none'; });
+});
+
+// ── AI Tagging on title / description blur ────────────────────────────────────
+let aiDebounce;
+function triggerAISuggest() {
+    clearTimeout(aiDebounce);
+    aiDebounce = setTimeout(() => {
+        const title = document.getElementById('title').value.trim();
+        const desc  = document.getElementById('description').value.trim();
+        if (title.length < 3) return;
+
+        fetch('/products/ai-suggest', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({title, description: desc})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.category && data.tags.length === 0) return;
+            const box = document.getElementById('aiSuggestBox');
+            const content = document.getElementById('aiSuggestContent');
+            let html = '';
+            if (data.category) {
+                html += `<span>Suggested category: <strong>${data.category}</strong>
+                  <button type="button" class="ai-apply-btn btn btn-sm btn-outline"
+                    onclick="document.getElementById('category').value='${data.category}';this.parentElement.innerHTML='<em>✅ Applied!</em>'">
+                    Apply
+                  </button></span><br>`;
+            }
+            if (data.tags.length > 0) {
+                html += `<span style="margin-top:6px;display:block">Suggested tags:</span>`;
+                data.tags.forEach(tag => {
+                    html += `<button type="button" class="ai-suggest-tag" onclick="applyTag('${tag}')">${tag}</button>`;
+                });
+            }
+            content.innerHTML = html;
+            box.classList.add('visible');
+        })
+        .catch(() => {});
+    }, 700);
+}
+
+function applyTag(tag) {
+    const tagsEl = document.getElementById('tags');
+    const existing = tagsEl.value.split(',').map(t => t.trim()).filter(Boolean);
+    if (!existing.includes(tag)) {
+        existing.push(tag);
+        tagsEl.value = existing.join(', ');
+    }
+}
+
+document.getElementById('title').addEventListener('input', triggerAISuggest);
+document.getElementById('description').addEventListener('input', triggerAISuggest);
+</script>
+{% endblock %}

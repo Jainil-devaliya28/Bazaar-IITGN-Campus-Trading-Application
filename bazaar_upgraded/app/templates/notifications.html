@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Notifications — CampusTrade{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>🔔 Notifications</h2>
+  {% if notifs %}
+  <form method="POST" action="{{ url_for('notifs.mark_all_read') }}">
+    <button type="submit" class="btn btn-outline btn-sm">Mark all as read</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if notifs %}
+<div class="notif-list">
+  {% for n in notifs %}
+  <a href="{{ url_for('notifs.mark_read', notif_id=n.notif_id) }}"
+     class="notif-card {% if not n.is_read %}notif-unread{% endif %}">
+    <div class="notif-content">
+      <div class="notif-title">{{ n.title }}</div>
+      <div class="notif-message">{{ n.message }}</div>
+    </div>
+    <div class="notif-meta">
+      <small>{{ n.created_at.strftime('%d %b %Y, %H:%M') }}</small>
+      {% if not n.is_read %}
+      <span class="notif-dot"></span>
+      {% endif %}
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <p>No notifications yet.</p>
+  <a href="{{ url_for('products.marketplace') }}" class="btn btn-primary">Browse Marketplace</a>
+</div>
+{% endif %}
+{% endblock %}

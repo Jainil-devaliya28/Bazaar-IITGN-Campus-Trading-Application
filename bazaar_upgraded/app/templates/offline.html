@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Offline — Bazaar@IITGN{% endblock %}
+{% block content %}
+<div style="text-align:center;padding:4rem 1rem;max-width:480px;margin:0 auto">
+  <div style="font-size:4rem;margin-bottom:1rem">📦</div>
+  <h2 style="margin-bottom:.5rem">You're Offline</h2>
+  <p style="color:var(--muted);margin-bottom:2rem">
+    No internet connection. Your recently cached listings and chat messages are still available.
+  </p>
+  <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+    <a href="/marketplace" class="btn btn-primary">View Marketplace</a>
+    <a href="/chat" class="btn btn-outline">Open Chat</a>
+  </div>
+  <p style="margin-top:2rem;font-size:.85rem;color:var(--muted)">
+    Pages visited while online are saved for offline viewing automatically.
+  </p>
+</div>
+{% endblock %}

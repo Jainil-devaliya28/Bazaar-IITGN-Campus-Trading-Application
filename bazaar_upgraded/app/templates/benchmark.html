@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+{% block title %}SQL Benchmark — Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>⚡ SQL Indexing & Performance Benchmark</h2>
+  <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline">← Admin</a>
+</div>
+
+<div class="stats-grid" style="margin-bottom:1.5rem;">
+  <div class="stat-card"><span class="stat-number">{{ total_queries }}</span><span class="stat-label">Queries Tested</span></div>
+  <div class="stat-card"><span class="stat-number" style="color:var(--green)">{{ optimized_count }}</span><span class="stat-label">Using Index ✓</span></div>
+  <div class="stat-card"><span class="stat-number" style="color:var(--red)">{{ total_queries - optimized_count }}</span><span class="stat-label">Full Scans ⚠</span></div>
+  <div class="stat-card"><span class="stat-number">{{ avg_query_ms }}ms</span><span class="stat-label">Avg Query Time</span></div>
+</div>
+
+<p class="empty-text" style="margin-bottom:1.5rem;">
+  <strong>access_type guide:</strong>
+  <span class="badge badge-green">ref / range / const</span> = index used (fast) &nbsp;|&nbsp;
+  <span class="badge badge-red">ALL</span> = full table scan (slow)
+</p>
+
+<!-- Charts Section -->
+<div class="section" style="margin-bottom:2rem;">
+  <h3>📊 Performance Analytics</h3>
+  <div class="charts-grid">
+    <div class="chart-container">
+      <h4>Average Query Time by Category</h4>
+      <canvas id="categoryAvgChart"></canvas>
+    </div>
+    <div class="chart-container">
+      <h4>Index Usage: Optimized vs Full Scans</h4>
+      <canvas id="optimizedChart" style="max-width:300px;"></canvas>
+    </div>
+    <div class="chart-container">
+      <h4>Query Count by Category</h4>
+      <canvas id="categoryCountChart"></canvas>
+    </div>
+    <div class="chart-container">
+      <h4>Query Frequency Distribution</h4>
+      <canvas id="frequencyChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Category-wise Summary -->
+<div class="section" style="margin-bottom:2rem;">
+  <h3>📋 Category-wise Performance Summary</h3>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>Queries</th>
+        <th>Optimized</th>
+        <th>Avg Time (ms)</th>
+        <th>Optimization Rate</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cat, data in categories.items() %}
+      <tr>
+        <td><strong>{{ cat }}</strong></td>
+        <td>{{ data.total }}</td>
+        <td>
+          <span style="color:var(--green)">{{ data.optimized }}</span> /
+          <span style="color:var(--red)">{{ data.total - data.optimized }}</span>
+        </td>
+        <td>{{ data.avg_ms }}ms</td>
+        <td>
+          {% set rate = (data.optimized / data.total * 100)|round(1) %}
+          <span style="color:{% if rate >= 80 %}var(--green){% elif rate >= 50 %}orange{% else %}var(--red){% endif %}">{{ rate }}%</span>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% for r in results %}
+<div class="bench-card {% if r.is_optimized %}bench-good{% else %}bench-bad{% endif %}">
+  <div class="bench-header">
+    <div>
+      <h3>{{ loop.index }}. {{ r.title }}</h3>
+      <p class="bench-desc">{{ r.endpoint }} &nbsp;·&nbsp; Frequency: {{ r.frequency }}</p>
+    </div>
+    {% if r.is_optimized %}
+    <span class="bench-badge bench-badge-good">✓ Index Used</span>
+    {% else %}
+    <span class="bench-badge bench-badge-bad">⚠ Full Scan</span>
+    {% endif %}
+  </div>
+
+  <div class="bench-timing">
+    <div class="timing-box"><span class="timing-val">{{ r.timing.min_ms }}ms</span><span class="timing-lbl">Min</span></div>
+    <div class="timing-box timing-highlight"><span class="timing-val">{{ r.timing.avg_ms }}ms</span><span class="timing-lbl">Avg ({{ r.timing.runs }} runs)</span></div>
+    <div class="timing-box"><span class="timing-val">{{ r.timing.max_ms }}ms</span><span class="timing-lbl">Max</span></div>
+  </div>
+
+  <div class="explain-grid">
+    <div class="explain-cell">
+      <span class="explain-key">access_type</span>
+      <span class="explain-val {% if r.access_type in ('const','eq_ref','ref','range','index') %}explain-good{% elif r.access_type == 'ALL' %}explain-bad{% endif %}">{{ r.access_type }}</span>
+    </div>
+    <div class="explain-cell"><span class="explain-key">key used</span>
+      <span class="explain-val {% if r.key_used not in ('None','N/A') %}explain-good{% endif %}">{{ r.key_used }}</span></div>
+    <div class="explain-cell"><span class="explain-key">rows examined</span><span class="explain-val">{{ r.rows_examined }}</span></div>
+    <div class="explain-cell"><span class="explain-key">possible_keys</span><span class="explain-val">{{ r.possible_keys }}</span></div>
+    <div class="explain-cell explain-cell-wide"><span class="explain-key">Extra</span><span class="explain-val">{{ r.extra_info }}</span></div>
+  </div>
+
+  <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.5rem;"><strong>Indexes applied:</strong>
+    {% for i in r.indexes %}{{ i }}{% if not loop.last %} · {% endif %}{% endfor %}
+  </p>
+
+  <details class="sql-toggle">
+    <summary>View SQL</summary>
+    <pre class="sql-code">{{ r.sql }}</pre>
+  </details>
+
+  {% if r.explain_rows %}
+  <details class="sql-toggle">
+    <summary>Full EXPLAIN output</summary>
+    <div style="overflow-x:auto;">
+      <table class="table" style="font-size:0.78rem;">
+        <thead><tr>{% for k in r.explain_rows[0].keys() %}<th>{{ k }}</th>{% endfor %}</tr></thead>
+        <tbody>{% for row in r.explain_rows %}<tr>{% for v in row.values() %}<td>{{ v if v is not none else 'NULL' }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+      </table>
+    </div>
+  </details>
+  {% endif %}
+  {% if r.explain_err %}<p class="empty-text" style="color:var(--red)">Error: {{ r.explain_err }}</p>{% endif %}
+</div>
+{% endfor %}
+
+<div class="section" style="margin-top:2rem;">
+  <h3>All Indexes on Database ({{ all_indexes|length }})</h3>
+  {% if all_indexes %}
+  <table class="table">
+    <thead><tr><th>Table</th><th>Index Name</th><th>Columns</th><th>Type</th><th>Unique</th></tr></thead>
+    <tbody>
+    {% for idx in all_indexes %}
+    <tr>
+      <td><strong>{{ idx.TABLE_NAME }}</strong></td>
+      <td><code>{{ idx.INDEX_NAME }}</code></td>
+      <td><code>{{ idx.columns }}</code></td>
+      <td>{{ idx.INDEX_TYPE }}</td>
+      <td>{% if idx.NON_UNIQUE == 0 %}<span class="badge badge-green">YES</span>{% else %}No{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-text">No indexes found yet — run the app once to auto-create all tables.</p>
+  {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Category Average Time Chart
+    const ctx1 = document.getElementById('categoryAvgChart').getContext('2d');
+    new Chart(ctx1, {
+        type: 'bar',
+        data: {
+            labels: {{ chart_data.categories|tojson }},
+            datasets: [{
+                label: 'Avg Query Time (ms)',
+                data: {{ chart_data.avg_times|tojson }},
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Time (ms)' }
+                }
+            }
+        }
+    });
+
+    // Optimized vs Scans Pie Chart
+    const ctx2 = document.getElementById('optimizedChart').getContext('2d');
+    new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+            labels: ['Using Index', 'Full Scan'],
+            datasets: [{
+                data: [{{ chart_data.optimized_vs_scans.optimized }}, {{ chart_data.optimized_vs_scans.scans }}],
+                backgroundColor: ['#4CAF50', '#F44336'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+
+    // Category Query Count Chart
+    const ctx3 = document.getElementById('categoryCountChart').getContext('2d');
+    new Chart(ctx3, {
+        type: 'bar',
+        data: {
+            labels: {{ chart_data.categories|tojson }},
+            datasets: [{
+                label: 'Total Queries',
+                data: {{ chart_data.total_counts|tojson }},
+                backgroundColor: 'rgba(255, 206, 86, 0.6)',
+                borderColor: 'rgba(255, 206, 86, 1)',
+                borderWidth: 1
+            }, {
+                label: 'Optimized Queries',
+                data: {{ chart_data.optimized_counts|tojson }},
+                backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Count' }
+                }
+            }
+        }
+    });
+
+    // Frequency Distribution Chart
+    const freqLabels = Object.keys({{ chart_data.frequency_distribution|tojson }});
+    const freqData = Object.values({{ chart_data.frequency_distribution|tojson }});
+    const ctx4 = document.getElementById('frequencyChart').getContext('2d');
+    new Chart(ctx4, {
+        type: 'pie',
+        data: {
+            labels: freqLabels,
+            datasets: [{
+                data: freqData,
+                backgroundColor: [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+});
+</script>
+
+<style>
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.chart-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    box-shadow: var(--shadow);
+}
+
+.chart-container h4 {
+    margin: 0 0 1rem 0;
+    color: var(--text);
+    font-size: 1rem;
+    text-align: center;
+}
+</style>
+
+{% endblock %}

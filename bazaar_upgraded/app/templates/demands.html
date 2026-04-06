@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Demands Board — CampusTrade{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Demands Board</h2>
+  <a href="{{ url_for('demands.add_demand') }}" class="btn btn-primary">+ Raise Demand</a>
+</div>
+
+<form method="GET" class="filter-bar">
+  <select name="category" class="filter-select">
+    <option value="">All Categories</option>
+    {% for c in categories %}
+    <option value="{{ c }}" {% if selected_category == c %}selected{% endif %}>{{ c }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn-primary">Filter</button>
+  <a href="{{ url_for('demands.list_demands') }}" class="btn btn-outline">Clear</a>
+</form>
+
+{% if demands %}
+<div class="demand-list">
+  {% for d in demands %}
+  <div class="demand-card">
+    <div class="demand-header">
+      <div>
+        <span class="product-category">{{ d.category or 'Other' }}</span>
+        <h4>{{ d.title }}</h4>
+      </div>
+      <div class="demand-right">
+        {% if d.budget %}
+        <strong class="price">Budget: ₹{{ "%.2f"|format(d.budget) }}</strong>
+        {% endif %}
+        <span class="badge badge-{{ 'green' if d.status == 'open' else 'yellow' }}">{{ d.status }}</span>
+      </div>
+    </div>
+    {% if d.description %}
+    <p class="demand-desc">{{ d.description }}</p>
+    {% endif %}
+    <div class="demand-footer">
+      <small>by <a href="{{ url_for('main.profile', member_id=d.member_id) }}">{{ d.member.name }}</a>
+        · {{ d.created_at.strftime('%d %b %Y') }}</small>
+      <div class="demand-actions">
+        {% if d.member_id != session.member_id %}
+        <a href="{{ url_for('chat.start_chat', member_id=d.member_id) }}" class="btn btn-sm btn-outline">💬 I have this!</a>
+        {% endif %}
+        {% if d.member_id == session.member_id or session.role == 'admin' %}
+        <form method="POST" action="{{ url_for('demands.close_demand', demand_id=d.demand_id) }}"
+              onsubmit="return confirm('Close this demand?')">
+          <button type="submit" class="btn btn-sm btn-outline">Close</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <p>No open demands right now.</p>
+  <a href="{{ url_for('demands.add_demand') }}" class="btn btn-primary">Be the first to raise one!</a>
+</div>
+{% endif %}
+{% endblock %}

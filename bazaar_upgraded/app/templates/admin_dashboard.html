@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard — Bazaar@IITGN{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2>Admin Dashboard</h2>
+</div>
+<div class="stats-grid">
+  <div class="stat-card"><span class="stat-number">{{ total_members }}</span><span class="stat-label">Members</span></div>
+  <div class="stat-card"><span class="stat-number">{{ total_products }}</span><span class="stat-label">Products</span></div>
+  <div class="stat-card"><span class="stat-number">{{ total_txns }}</span><span class="stat-label">Transactions</span></div>
+  <div class="stat-card"><span class="stat-number">{{ total_feedbacks }}</span><span class="stat-label">Feedbacks</span></div>
+  <div class="stat-card {% if open_reports > 0 %}stat-card-alert{% endif %}">
+    <span class="stat-number">{{ open_reports }}</span>
+    <span class="stat-label">⚑ Open Reports</span>
+  </div>
+</div>
+<div class="admin-nav" style="margin-top:1.5rem;display:flex;gap:1rem;flex-wrap:wrap">
+  <a href="{{ url_for('admin.members') }}" class="btn btn-outline">👥 Members</a>
+  <a href="{{ url_for('admin.all_products') }}" class="btn btn-outline">📦 Products</a>
+  <a href="{{ url_for('admin.feedbacks') }}" class="btn btn-outline">📝 Feedbacks</a>
+  <a href="{{ url_for('admin.reports') }}" class="btn btn-outline {% if open_reports > 0 %}btn-alert{% endif %}">⚑ Reports{% if open_reports > 0 %} ({{ open_reports }}){% endif %}</a>
+  <a href="{{ url_for('admin.logs') }}" class="btn btn-outline">📋 Logs</a>
+</div>
+<div class="section" style="margin-top:2rem">
+  <h3>Recent Activity</h3>
+  <div class="table-wrapper">
+  <table class="table">
+    <thead><tr><th>Time</th><th>Action</th><th>Description</th></tr></thead>
+    <tbody>
+    {% for log in recent_logs %}
+    <tr>
+      <td style="white-space:nowrap">{{ log.timestamp.strftime('%d %b %H:%M') }}</td>
+      <td><span class="badge badge-blue">{{ log.action_type }}</span></td>
+      <td style="font-size:13px">{{ log.description[:100] }}{% if log.description and log.description|length > 100 %}…{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

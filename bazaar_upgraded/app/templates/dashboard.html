@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Bazaar@IITGN{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Welcome back, {{ member.name }} 👋</h2>
+    {% if member.hostel %}<p style="color:var(--muted);margin:0">📍 {{ member.hostel }}{% if member.wing %} · Wing {{ member.wing }}{% endif %}</p>{% endif %}
+  </div>
+  <div class="header-actions">
+    <a href="{{ url_for('products.add_product') }}" class="btn btn-primary">+ List Item</a>
+    <a href="{{ url_for('demands.add_demand') }}" class="btn btn-outline">+ Raise Demand</a>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <span class="stat-number">{{ total_products }}</span>
+    <span class="stat-label">Listed Products</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-number">{{ total_purchases }}</span>
+    <span class="stat-label">Purchases Made</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-number">{{ total_sales }}</span>
+    <span class="stat-label">Items Sold</span>
+  </div>
+  <div class="stat-card karma-card">
+    <span class="stat-number karma-score">{{ member.karma_score }}</span>
+    <span class="stat-label">⭐ Karma Score</span>
+  </div>
+</div>
+
+<!-- Active Offers & Incoming -->
+{% if my_offers or incoming_offers %}
+<div class="section">
+  <div class="section-header">
+    <h3>Active Offers</h3>
+    <a href="{{ url_for('products.my_offers') }}" class="link-subtle">View all →</a>
+  </div>
+  {% if incoming_offers %}
+  <div class="alert alert-info" style="margin-bottom:0.75rem">
+    📬 You have <strong>{{ incoming_offers }}</strong> incoming offer{% if incoming_offers != 1 %}s{% endif %} on your listings.
+    <a href="{{ url_for('products.my_listings') }}">Review them →</a>
+  </div>
+  {% endif %}
+  {% if my_offers %}
+  <table class="table">
+    <thead><tr><th>Product</th><th>My Offer</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for o in my_offers %}
+    <tr>
+      <td>{{ o.product.title if o.product else '(deleted)' }}</td>
+      <td>₹{{ "%.2f"|format(o.proposed_price) }}{% if o.counter_price %} → ₹{{ "%.2f"|format(o.counter_price) }}{% endif %}</td>
+      <td><span class="badge badge-{{ 'yellow' if o.status == 'pending' else 'blue' }}">{{ o.status }}</span></td>
+      <td><a href="{{ url_for('products.product_detail', product_id=o.product_id) }}" class="link-subtle">View</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Watchlist -->
+{% if watchlist_count > 0 %}
+<div class="section">
+  <div class="section-header">
+    <h3>🔖 Watchlist ({{ watchlist_count }})</h3>
+    <a href="{{ url_for('products.watchlist') }}" class="link-subtle">View all →</a>
+  </div>
+</div>
+{% endif %}
+
+<!-- Recent Listings -->
+<div class="section">
+  <div class="section-header">
+    <h3>Your Recent Listings</h3>
+    <a href="{{ url_for('products.my_listings') }}" class="link-subtle">View all →</a>
+  </div>
+  {% if recent_products %}
+  <div class="product-grid">
+    {% for p in recent_products %}
+    <div class="product-card {% if p.is_urgent %}product-urgent{% endif %}">
+      {% if p.is_urgent %}<div class="urgent-ribbon">🔥 Urgent</div>{% endif %}
+      {% if p.image_url %}
+      <img src="{{ p.image_url }}" alt="{{ p.title }}" class="product-img" />
+      {% else %}
+      <div class="product-img-placeholder">📦</div>
+      {% endif %}
+      <div class="product-info">
+        <span class="product-category">{{ p.category or 'Other' }}</span>
+        <h4><a href="{{ url_for('products.product_detail', product_id=p.product_id) }}">{{ p.title }}</a></h4>
+        <div class="product-footer">
+          <strong class="price">₹{{ "%.2f"|format(p.price) }}</strong>
+          <span class="condition-badge condition-{{ p.condition|lower if p.condition else 'other' }}">{{ p.condition or '—' }}</span>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <p>You haven't listed any products yet.</p>
+    <a href="{{ url_for('products.add_product') }}" class="btn btn-primary">List your first item</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Recent Transactions -->
+<div class="section">
+  <div class="section-header">
+    <h3>Recent Transactions</h3>
+    <a href="{{ url_for('transactions.my_transactions') }}" class="link-subtle">View all →</a>
+  </div>
+  {% if recent_txns %}
+  <div class="table-wrapper">
+  <table class="table">
+    <thead><tr><th>Product</th><th>Role</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+    <tbody>
+      {% for t in recent_txns %}
+      <tr>
+        <td>{{ t.product.title if t.product else '(deleted)' }}</td>
+        <td>{% if t.buyer_id == session.member_id %}<span class="badge badge-blue">Buyer</span>{% else %}<span class="badge badge-green">Seller</span>{% endif %}</td>
+        <td>₹{{ "%.2f"|format(t.amount) }}</td>
+        <td><span class="badge badge-{{ 'green' if t.status == 'completed' else 'yellow' }}">{{ t.status }}</span></td>
+        <td>{{ t.created_at.strftime('%d %b %Y') }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="empty-text">No transactions yet.</p>
+  {% endif %}
+</div>
+
+<!-- Quick Links -->
+<div class="quick-links">
+  <a href="{{ url_for('chat.inbox') }}" class="quick-card">💬 Messages</a>
+  <a href="{{ url_for('products.watchlist') }}" class="quick-card">🔖 Watchlist</a>
+  <a href="{{ url_for('products.my_offers') }}" class="quick-card">💰 My Offers</a>
+  <a href="{{ url_for('demands.list_demands') }}" class="quick-card">📋 Demands</a>
+  <a href="{{ url_for('transactions.my_transactions') }}" class="quick-card">🧾 Transactions</a>
+  <a href="{{ url_for('main.profile', member_id=session.member_id) }}" class="quick-card">👤 Profile</a>
+</div>
+{% endblock %}

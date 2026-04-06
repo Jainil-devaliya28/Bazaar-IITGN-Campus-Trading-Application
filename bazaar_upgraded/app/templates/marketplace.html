@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Marketplace — Bazaar@IITGN{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2>Marketplace</h2>
+  <a href="{{ url_for('products.add_product') }}" class="btn btn-primary">+ List Item</a>
+</div>
+
+<!-- Filters -->
+<div class="filter-bar">
+  <form method="GET" class="filter-form">
+    <input type="text" name="search" value="{{ search }}" placeholder="Search title, description or tags…" class="filter-input" />
+    <select name="category">
+      <option value="">All Categories</option>
+      {% for cat in categories %}
+      <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+      {% endfor %}
+    </select>
+    <select name="hostel">
+      <option value="">Any Hostel</option>
+      {% for h in hostels %}
+      <option value="{{ h }}" {% if selected_hostel == h %}selected{% endif %}>{{ h }}</option>
+      {% endfor %}
+    </select>
+    <input type="number" name="min_price" value="{{ min_price }}" placeholder="Min ₹" class="filter-short" min="0" />
+    <input type="number" name="max_price" value="{{ max_price }}" placeholder="Max ₹" class="filter-short" min="0" />
+    <label class="urgent-toggle">
+      <input type="checkbox" name="urgent" value="1" {% if urgent %}checked{% endif %} /> 🔥 Urgent only
+    </label>
+    <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+    <a href="{{ url_for('products.marketplace') }}" class="btn btn-sm btn-outline">Clear</a>
+  </form>
+</div>
+
+<!-- Price insights -->
+{% if price_insights and price_insights.count > 1 %}
+<div class="price-insight-bar">
+  <span class="pi-label">📊 {{ selected_category }} price insights ({{ price_insights.count }} listings):</span>
+  <span class="pi-stat">Avg <strong>₹{{ "%.0f"|format(price_insights.avg) }}</strong></span>
+  <span class="pi-sep">·</span>
+  <span class="pi-stat">Low <strong>₹{{ "%.0f"|format(price_insights.min) }}</strong></span>
+  <span class="pi-sep">·</span>
+  <span class="pi-stat">High <strong>₹{{ "%.0f"|format(price_insights.max) }}</strong></span>
+</div>
+{% endif %}
+
+<!-- Results count -->
+<p class="results-count">
+  {{ products|length }} item{% if products|length != 1 %}s{% endif %} found
+  {% if search %} for "<em>{{ search }}</em>"{% endif %}
+</p>
+
+{% if products %}
+<div class="product-grid">
+  {% for p in products %}
+  <div class="product-card {% if p.is_urgent %}product-urgent{% endif %}">
+    {% if p.is_urgent %}<div class="urgent-ribbon">🔥 Urgent</div>{% endif %}
+
+    {% if p.image_url %}
+    <a href="{{ url_for('products.product_detail', product_id=p.product_id) }}">
+      <img src="{{ p.image_url }}" alt="{{ p.title }}" class="product-img" />
+    </a>
+    {% else %}
+    <a href="{{ url_for('products.product_detail', product_id=p.product_id) }}" class="product-img-placeholder">📦</a>
+    {% endif %}
+
+    <div class="product-info">
+      <span class="product-category">{{ p.category or 'Other' }}</span>
+
+      {% if p.status == 'reserved' %}
+      <span class="badge badge-yellow" style="float:right;font-size:11px">Reserved</span>
+      {% endif %}
+
+      <h4><a href="{{ url_for('products.product_detail', product_id=p.product_id) }}">{{ p.title }}</a></h4>
+
+      {% if p.tags %}
+      <div class="tag-list">
+        {% for tag in p.tags.split(',') %}
+        {% set t = tag.strip() %}
+        {% if t %}
+        <a href="{{ url_for('products.marketplace', tag=t) }}" class="tag-chip">{{ t }}</a>
+        {% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if p.seller.hostel %}
+      <div class="product-location">📍 {{ p.seller.hostel }}{% if p.seller.wing %} · Wing {{ p.seller.wing }}{% endif %}</div>
+      {% endif %}
+
+      {% if p.pickup_point %}
+      <div class="product-location">🤝 {{ p.pickup_point }}</div>
+      {% endif %}
+
+      <div class="product-footer">
+        <strong class="price">₹{{ "%.2f"|format(p.price) }}</strong>
+        {% if p.condition %}
+        <span class="condition-badge condition-{{ p.condition|lower }}">{{ p.condition }}</span>
+        {% endif %}
+      </div>
+
+      <!-- Watchlist button -->
+      <form method="POST" action="{{ url_for('products.toggle_watchlist', product_id=p.product_id) }}" style="margin-top:0.4rem">
+        <button type="submit" class="btn-watchlist {% if p.product_id in watchlisted %}watchlisted{% endif %}" title="{% if p.product_id in watchlisted %}Remove from watchlist{% else %}Add to watchlist{% endif %}">
+          {% if p.product_id in watchlisted %}🔖{% else %}🔖{% endif %}
+          {% if p.product_id in watchlisted %}Saved{% else %}Save{% endif %}
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <p>No items match your search.</p>
+  <a href="{{ url_for('products.marketplace') }}" class="btn btn-outline">Clear filters</a>
+</div>
+{% endif %}
+{% endblock %}

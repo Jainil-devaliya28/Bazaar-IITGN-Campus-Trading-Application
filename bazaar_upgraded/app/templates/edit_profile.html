@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Edit Profile — Bazaar@IITGN{% endblock %}
+{% block content %}
+<div class="page-header"><h2>Edit Profile</h2></div>
+<div class="form-container">
+  <form method="POST" class="card-form" novalidate>
+    <div class="form-group">
+      <label for="name">Full Name</label>
+      <input type="text" id="name" name="name" value="{{ member.name }}" required
+             aria-required="true" autocomplete="name" />
+    </div>
+    <div class="form-group">
+      <label for="phone">Phone</label>
+      <input type="tel" id="phone" name="phone" value="{{ member.phone or '' }}"
+             autocomplete="tel" placeholder="+91 XXXXX XXXXX" />
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="hostel">Hostel</label>
+        <select id="hostel" name="hostel" aria-label="Select hostel">
+          <option value="">— Select —</option>
+          {% for h in hostels %}
+          <option value="{{ h }}" {% if member.hostel == h %}selected{% endif %}>{{ h }}</option>
+          {% endfor %}
+        </select>
+        <small style="color:var(--muted)">Visible on your profile and listings</small>
+      </div>
+      <div class="form-group">
+        <label for="wing">Floor</label>
+        <select id="wing" name="wing" aria-label="Select floor">
+          <option value="">— Select —</option>
+          {% for w in wings %}
+          <option value="{{ w }}" {% if member.wing == w %}selected{% endif %}>{{ w }} Floor</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    {% if member.student %}
+    <div class="form-row">
+      <div class="form-group">
+        <label for="department">Department</label>
+        <input type="text" id="department" name="department"
+               value="{{ member.student.department or '' }}" autocomplete="organization" />
+      </div>
+      <div class="form-group">
+        <label for="year">Year</label>
+        <input type="number" id="year" name="year" min="1" max="6"
+               value="{{ member.student.year or '' }}" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="roll_number">Roll Number</label>
+      <input type="text" id="roll_number" name="roll_number"
+             value="{{ member.student.roll_number or '' }}" />
+    </div>
+    {% endif %}
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Save Changes</button>
+      <a href="{{ url_for('main.profile', member_id=member.member_id) }}" class="btn btn-outline">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

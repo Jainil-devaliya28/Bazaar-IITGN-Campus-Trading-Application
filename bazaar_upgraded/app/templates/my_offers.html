@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}My Offers — Bazaar@IITGN{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2>💰 My Offers</h2>
+</div>
+
+{% if proposals %}
+<table class="table">
+  <thead>
+    <tr><th>Product</th><th>My Offer</th><th>Counter</th><th>Status</th><th>Date</th><th></th></tr>
+  </thead>
+  <tbody>
+  {% for o in proposals %}
+  <tr>
+    <td>
+      {% if o.product %}
+      <a href="{{ url_for('products.product_detail', product_id=o.product_id) }}">{{ o.product.title }}</a>
+      {% else %}(deleted){% endif %}
+    </td>
+    <td>₹{{ "%.2f"|format(o.proposed_price) }}</td>
+    <td>{% if o.counter_price %}₹{{ "%.2f"|format(o.counter_price) }}{% else %}—{% endif %}</td>
+    <td>
+      <span class="badge badge-{{ 'green' if o.status == 'accepted' else ('red' if o.status == 'rejected' else ('blue' if o.status == 'countered' else 'yellow')) }}">
+        {{ o.status }}
+      </span>
+    </td>
+    <td>{{ o.created_at.strftime('%d %b %Y') }}</td>
+    <td>
+      {% if o.product and o.status == 'countered' and o.counter_price %}
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+        <form method="POST" action="{{ url_for('products.accept_counter', proposal_id=o.proposal_id) }}">
+          <button class="btn btn-sm btn-primary">Accept ₹{{ "%.0f"|format(o.counter_price) }}</button>
+        </form>
+        <form method="POST" action="{{ url_for('products.reject_counter', proposal_id=o.proposal_id) }}">
+          <button class="btn btn-sm btn-outline">Reject</button>
+        </form>
+      </div>
+      {% elif o.product %}
+      <a href="{{ url_for('products.product_detail', product_id=o.product_id) }}" class="btn btn-sm btn-outline">View</a>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <p>You haven't made any offers yet.</p>
+  <a href="{{ url_for('products.marketplace') }}" class="btn btn-primary">Browse Marketplace</a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,26 @@
+{
+  "name": "Bazaar@IITGN",
+  "short_name": "Bazaar",
+  "description": "The Community Exchange at IIT Gandhinagar",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#f7f9fc",
+  "theme_color": "#2563EB",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/static/image.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/image.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["shopping", "social"],
+  "screenshots": []
+}

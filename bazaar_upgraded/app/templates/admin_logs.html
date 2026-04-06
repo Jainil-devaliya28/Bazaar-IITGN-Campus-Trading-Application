@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}System Logs — Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>System Logs</h2>
+  <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline">← Admin</a>
+</div>
+
+<form method="GET" class="filter-bar">
+  <select name="action" class="filter-select">
+    <option value="">All Actions</option>
+    {% for a in action_types %}
+    <option value="{{ a }}" {% if selected_action == a %}selected{% endif %}>{{ a }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn-primary">Filter</button>
+  <a href="{{ url_for('admin.logs') }}" class="btn btn-outline">Clear</a>
+</form>
+
+<div class="table-wrapper">
+<table class="table">
+  <thead>
+    <tr><th>#</th><th>Timestamp</th><th>User</th><th>Action</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    {% for log in logs.items %}
+    <tr>
+      <td>{{ log.log_id }}</td>
+      <td>{{ log.timestamp.strftime('%d %b %Y %H:%M:%S') }}</td>
+      <td>
+        {% if log.member %}
+        <a href="{{ url_for('main.profile', member_id=log.member_id) }}">{{ log.member.name }}</a>
+        {% else %}—{% endif %}
+      </td>
+      <td>
+        <span class="badge badge-{{ 'blue' if log.action_type in ['INSERT', 'LOGIN'] else ('yellow' if log.action_type in ['UPDATE', 'LOGOUT'] else ('red' if log.action_type in ['DELETE', 'UNAUTHORIZED_ACCESS', 'UNAUTHORIZED_ADMIN_ACCESS', 'INSUFFICIENT_PRIVILEGES', 'DB_INTEGRITY_ERROR', 'DB_OPERATIONAL_ERROR', 'DB_SQLALCHEMY_ERROR'] else ('orange' if log.action_type in ['DB_QUERY_ERROR', 'INTERNAL_SERVER_ERROR'] else 'green'))) }}">
+          {{ log.action_type }}
+        </span>
+      </td>
+      <td>{{ log.description }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="empty-text center">No logs found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<!-- Pagination -->
+<div class="pagination">
+  {% if logs.has_prev %}
+  <a href="{{ url_for('admin.logs', page=logs.prev_num, action=selected_action) }}" class="btn btn-outline btn-sm">← Prev</a>
+  {% endif %}
+  <span>Page {{ logs.page }} of {{ logs.pages }}</span>
+  {% if logs.has_next %}
+  <a href="{{ url_for('admin.logs', page=logs.next_num, action=selected_action) }}" class="btn btn-outline btn-sm">Next →</a>
+  {% endif %}
+</div>
+{% endblock %}

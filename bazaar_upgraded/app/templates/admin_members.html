@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Members — Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>All Members ({{ members|length }})</h2>
+  <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline">← Admin</a>
+</div>
+
+<div class="table-wrapper">
+<table class="table">
+  <thead>
+    <tr><th>#</th><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th>Actions</th></tr>
+  </thead>
+  <tbody>
+    {% for m in members %}
+    <tr>
+      <td>{{ m.member_id }}</td>
+      <td><a href="{{ url_for('main.profile', member_id=m.member_id) }}">{{ m.name }}</a></td>
+      <td>{{ m.email }}</td>
+      <td><span class="role-badge role-{{ m.role }}">{{ m.role|upper }}</span></td>
+      <td>{{ m.created_at.strftime('%d %b %Y') }}</td>
+      <td>
+        {% if m.member_id != session.member_id %}
+        <form method="POST" action="{{ url_for('admin.toggle_role', member_id=m.member_id) }}"
+              style="display:inline"
+              onsubmit="return confirm('Toggle role for {{ m.name }}?')">
+          <button type="submit" class="btn btn-sm btn-outline">
+            {{ 'Remove Admin' if m.role == 'admin' else 'Make Admin' }}
+          </button>
+        </form>
+        {% else %}
+        <span class="empty-text">(you)</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

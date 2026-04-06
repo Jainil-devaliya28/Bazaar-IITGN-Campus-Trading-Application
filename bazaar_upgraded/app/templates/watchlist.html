@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Watchlist — Bazaar@IITGN{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2>🔖 My Watchlist</h2>
+  <a href="{{ url_for('products.marketplace') }}" class="btn btn-outline">Browse Marketplace</a>
+</div>
+
+{% if items %}
+<div class="product-grid">
+  {% for w in items %}
+  {% set p = w.product %}
+  <div class="product-card {% if p.is_urgent %}product-urgent{% endif %}">
+    {% if p.is_urgent %}<div class="urgent-ribbon">🔥 Urgent</div>{% endif %}
+    {% if not p.is_available %}<div class="sold-overlay">Sold</div>{% endif %}
+
+    {% if p.image_url %}
+    <a href="{{ url_for('products.product_detail', product_id=p.product_id) }}">
+      <img src="{{ p.image_url }}" alt="{{ p.title }}" class="product-img" />
+    </a>
+    {% else %}
+    <a href="{{ url_for('products.product_detail', product_id=p.product_id) }}" class="product-img-placeholder">📦</a>
+    {% endif %}
+
+    <div class="product-info">
+      <span class="product-category">{{ p.category or 'Other' }}</span>
+      <h4><a href="{{ url_for('products.product_detail', product_id=p.product_id) }}">{{ p.title }}</a></h4>
+      {% if p.seller.hostel %}
+      <div class="product-location">📍 {{ p.seller.hostel }}{% if p.seller.wing %} · Wing {{ p.seller.wing }}{% endif %}</div>
+      {% endif %}
+      <div class="product-footer">
+        <strong class="price">₹{{ "%.2f"|format(p.price) }}</strong>
+        {% if p.condition %}<span class="condition-badge condition-{{ p.condition|lower }}">{{ p.condition }}</span>{% endif %}
+        {% if not p.is_available %}<span class="badge badge-red">Sold</span>{% endif %}
+      </div>
+      <form method="POST" action="{{ url_for('products.toggle_watchlist', product_id=p.product_id) }}" style="margin-top:0.4rem">
+        <button type="submit" class="btn-watchlist watchlisted">🔖 Remove</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <p>Your watchlist is empty.</p>
+  <a href="{{ url_for('products.marketplace') }}" class="btn btn-primary">Browse Marketplace</a>
+</div>
+{% endif %}
+{% endblock %}

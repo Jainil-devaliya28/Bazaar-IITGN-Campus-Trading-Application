@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+{% block title %}{{ product.title }} — Bazaar@IITGN{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <a href="{{ url_for('products.marketplace') }}" class="btn btn-outline">← Marketplace</a>
+  {% if is_admin and not is_owner %}
+  <span class="role-badge role-admin">👁 Viewing as Admin</span>
+  {% endif %}
+</div>
+
+<div class="detail-layout">
+  <!-- Left: Product info -->
+  <div class="detail-main">
+    {% if product.image_url %}
+    <img src="{{ product.image_url }}" alt="{{ product.title }}" class="detail-img" />
+    {% else %}
+    <div class="detail-img-placeholder">📦</div>
+    {% endif %}
+
+    <div class="detail-body">
+      <div class="detail-meta">
+        <span class="product-category">{{ product.category or 'Other' }}</span>
+        {% if product.condition %}
+        <span class="condition-badge condition-{{ product.condition|lower }}">{{ product.condition }}</span>
+        {% endif %}
+        {% if product.is_urgent %}
+        <span class="badge-urgent">🔥 Urgent Sale</span>
+        {% endif %}
+        {% if product.status == 'reserved' %}
+        <span class="badge badge-yellow">Reserved</span>
+        {% elif not product.is_available %}
+        <span class="badge badge-red">Sold</span>
+        {% endif %}
+      </div>
+
+      <h2>{{ product.title }}</h2>
+      <div class="price-big">₹{{ "%.2f"|format(product.price) }}</div>
+
+      {% if price_insights %}
+      <div class="price-insight">
+        <span class="pi-icon">📊</span>
+        <span>
+          Campus avg for <strong>{{ product.category }}</strong>:
+          <strong>₹{{ price_insights.avg|round(0)|int }}</strong>
+          &nbsp;·&nbsp; Median ₹{{ price_insights.median|round(0)|int }}
+          &nbsp;·&nbsp; Range ₹{{ price_insights.min|round(0)|int }}–₹{{ price_insights.max|round(0)|int }}
+          <small>({{ price_insights.count }} listing{% if price_insights.count != 1 %}s{% endif %})</small>
+          {% if product.price|float < price_insights.avg %}
+          &nbsp;<span class="badge badge-green" style="font-size:11px">Below avg 👍</span>
+          {% elif product.price|float > price_insights.avg * 1.2 %}
+          &nbsp;<span class="badge badge-yellow" style="font-size:11px">Above avg ⚠️</span>
+          {% endif %}
+        </span>
+      </div>
+      {% endif %}
+
+      {% if product.description %}
+      <p class="product-full-desc">{{ product.description }}</p>
+      {% endif %}
+
+      {% if product.tags %}
+      <div class="tag-list" style="margin-bottom:0.75rem">
+        {% for tag in product.tags.split(',') %}{% set t = tag.strip() %}{% if t %}
+        <a href="{{ url_for('products.marketplace', tag=t) }}" class="tag-chip">{{ t }}</a>
+        {% endif %}{% endfor %}
+      </div>
+      {% endif %}
+
+      {% if product.pickup_point %}
+      <p class="detail-pickup">🤝 Pickup: {{ product.pickup_point }}</p>
+      {% endif %}
+
+      <p class="detail-seller">
+        Sold by
+        <a href="{{ url_for('main.profile', member_id=product.seller_id) }}">{{ product.seller.name }}</a>
+        {% if product.seller.hostel %}· 📍 {{ product.seller.hostel }}{% if product.seller.wing %} Wing {{ product.seller.wing }}{% endif %}{% endif %}
+        &nbsp;·&nbsp;
+        <span title="Karma score">⭐ {{ product.seller.karma_score }} karma</span>
+        &nbsp;·&nbsp; {{ product.created_at.strftime('%d %b %Y') }}
+      </p>
+
+      <!-- Watchlist -->
+      {% if not is_owner %}
+      <form method="POST" action="{{ url_for('products.toggle_watchlist', product_id=product.product_id) }}" style="display:inline;">
+        <button type="submit" class="btn btn-sm {% if is_watchlisted %}btn-primary{% else %}btn-outline{% endif %}">
+          {% if is_watchlisted %}🔖 Saved{% else %}🔖 Save to Watchlist{% endif %}
+        </button>
+      </form>
+      {% endif %}
+
+      <!-- ── BUYER ACTIONS ── -->
+      {% if not is_owner and session.role != 'admin' and product.is_available %}
+
+        <!-- Purchase Request -->
+        {% if my_purchase_request and my_purchase_request.status != 'rejected' %}
+        <div class="purchase-request-status status-{{ my_purchase_request.status }}" style="margin-top:1rem">
+          <div class="my-proposal-header">
+            <span class="my-proposal-label">🛒 Your Purchase Request</span>
+            <span class="badge badge-{{ 'green' if my_purchase_request.status == 'approved' else ('red' if my_purchase_request.status == 'rejected' else 'yellow') }}">
+              {{ my_purchase_request.status|upper }}
+            </span>
+          </div>
+          {% if my_purchase_request.status == 'pending' %}
+          <p>⏳ Waiting for seller's approval.</p>
+          <form method="POST" action="{{ url_for('products.cancel_purchase_request', req_id=my_purchase_request.request_id) }}">
+            <button type="submit" class="btn btn-sm btn-outline">Cancel Request</button>
+          </form>
+          {% elif my_purchase_request.status == 'approved' %}
+          <p>✅ Approved! This item is yours.</p>
+          {% endif %}
+        </div>
+        {% else %}
+        <div class="buy-request-panel" style="margin-top:1rem">
+          <h4>Request to Buy</h4>
+          <form method="POST" action="{{ url_for('products.request_buy', product_id=product.product_id) }}">
+            <div class="form-group">
+              <textarea name="buy_message" rows="2" placeholder="Message to seller (optional)…"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Send Purchase Request</button>
+          </form>
+        </div>
+        {% endif %}
+
+        <!-- Bargaining -->
+        <div class="bargain-panel" style="margin-top:1rem">
+          {% if my_proposal and my_proposal.status in ('pending', 'countered') %}
+          <div class="my-proposal-box">
+            <div class="my-proposal-header">
+              <span class="my-proposal-label">💰 Your Offer</span>
+              <span class="badge badge-{{ 'yellow' if my_proposal.status == 'pending' else 'blue' }}">{{ my_proposal.status|upper }}</span>
+            </div>
+            <p>You offered <strong>₹{{ "%.2f"|format(my_proposal.proposed_price) }}</strong></p>
+            {% if my_proposal.status == 'countered' and my_proposal.counter_price %}
+            <p>↩️ Seller countered at <strong>₹{{ "%.2f"|format(my_proposal.counter_price) }}</strong></p>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.75rem">
+              <form method="POST" action="{{ url_for('products.accept_counter', proposal_id=my_proposal.proposal_id) }}">
+                <button type="submit" class="btn btn-sm btn-primary">Accept ₹{{ "%.0f"|format(my_proposal.counter_price) }}</button>
+              </form>
+              <form method="POST" action="{{ url_for('products.reject_counter', proposal_id=my_proposal.proposal_id) }}">
+                <button type="submit" class="btn btn-sm btn-outline">Reject</button>
+              </form>
+            </div>
+            {% endif %}
+          </div>
+          {% else %}
+          <h4>Make an Offer</h4>
+          <form method="POST" action="{{ url_for('products.send_proposal', product_id=product.product_id) }}" class="inline-form">
+            <input type="number" name="proposed_price" step="0.01" min="1"
+                   placeholder="Your price (₹)" required style="width:140px" />
+            <input type="text" name="message" placeholder="Message (optional)" style="flex:1" />
+            <button type="submit" class="btn btn-sm btn-outline">Send Offer</button>
+          </form>
+          {% endif %}
+        </div>
+
+        <!-- Chat with seller -->
+        <div style="margin-top:0.75rem">
+          <a href="{{ url_for('chat.start_chat', member_id=product.seller_id) }}" class="btn btn-sm btn-outline">
+            💬 Chat with Seller
+          </a>
+        </div>
+
+      {% endif %}
+
+      <!-- ── SELLER ACTIONS ── -->
+      {% if is_owner %}
+      <div class="seller-actions" style="margin-top:1rem">
+        <a href="{{ url_for('products.edit_product', product_id=product.product_id) }}" class="btn btn-sm btn-outline">Edit</a>
+        <form method="POST" action="{{ url_for('products.toggle_availability', product_id=product.product_id) }}" style="display:inline">
+          <button class="btn btn-sm btn-outline">{{ 'Relist' if not product.is_available else 'Mark Sold' }}</button>
+        </form>
+        <form method="POST" action="{{ url_for('products.delete_product', product_id=product.product_id) }}"
+              style="display:inline" onsubmit="return confirm('Delete this listing?')">
+          <button class="btn btn-sm btn-danger">Delete</button>
+        </form>
+      </div>
+      {% endif %}
+
+      <!-- ── REPORT (non-owner) ── -->
+      {% if not is_owner and session.role != 'admin' %}
+      <details class="report-section" style="margin-top:1.5rem">
+        <summary class="link-muted">⚑ Report this listing</summary>
+        <form method="POST" action="{{ url_for('products.report_product', product_id=product.product_id) }}" style="margin-top:0.75rem">
+          <div class="form-group">
+            <select name="reason" required>
+              <option value="">— Select reason —</option>
+              {% for r in report_reasons %}
+              <option value="{{ r }}">{{ r }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <textarea name="details" rows="2" placeholder="Additional details (optional)"></textarea>
+          </div>
+          <button type="submit" class="btn btn-sm btn-danger">Submit Report</button>
+        </form>
+      </details>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <!-- Right: Proposals + Reviews -->
+  <div class="detail-sidebar">
+
+    <!-- Seller: incoming proposals -->
+    {% if (is_owner or is_admin) and all_proposals %}
+    <div class="sidebar-section">
+      <h3>Offers Received ({{ all_proposals|length }})</h3>
+      {% for prop in all_proposals %}
+      <div class="proposal-item status-{{ prop.status }}">
+        <div class="prop-header">
+          <a href="{{ url_for('main.profile', member_id=prop.buyer_id) }}">{{ prop.buyer.name }}</a>
+          <span class="badge badge-{{ 'green' if prop.status == 'accepted' else ('red' if prop.status == 'rejected' else ('blue' if prop.status == 'countered' else 'yellow')) }}">
+            {{ prop.status }}
+          </span>
+        </div>
+        <p class="prop-price">₹{{ "%.2f"|format(prop.proposed_price) }}
+          {% if prop.counter_price %} → counter ₹{{ "%.2f"|format(prop.counter_price) }}{% endif %}
+        </p>
+        {% if prop.message %}<p class="prop-msg">{{ prop.message }}</p>{% endif %}
+
+        {% if is_owner and prop.status == 'pending' %}
+        <div class="prop-actions">
+          <form method="POST" action="{{ url_for('products.respond_proposal', proposal_id=prop.proposal_id) }}" style="display:inline">
+            <input type="hidden" name="action" value="accepted" />
+            <button class="btn btn-sm btn-primary">Accept</button>
+          </form>
+          <form method="POST" action="{{ url_for('products.respond_proposal', proposal_id=prop.proposal_id) }}" class="inline-form" style="display:inline-flex;gap:4px;align-items:center">
+            <input type="hidden" name="action" value="countered" />
+            <input type="number" name="counter_price" placeholder="Counter ₹" step="0.01" min="1" style="width:100px" required />
+            <button class="btn btn-sm btn-outline">Counter</button>
+          </form>
+          <form method="POST" action="{{ url_for('products.respond_proposal', proposal_id=prop.proposal_id) }}" style="display:inline">
+            <input type="hidden" name="action" value="rejected" />
+            <button class="btn btn-sm btn-danger">Reject</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Seller: purchase requests -->
+    {% if (is_owner or is_admin) and pending_requests %}
+    <div class="sidebar-section">
+      <h3>Purchase Requests ({{ pending_requests|length }})</h3>
+      {% for pr in pending_requests %}
+      <div class="proposal-item status-pending">
+        <div class="prop-header">
+          <a href="{{ url_for('main.profile', member_id=pr.buyer_id) }}">{{ pr.buyer.name }}</a>
+          <span class="badge badge-yellow">pending</span>
+        </div>
+        {% if pr.message %}<p class="prop-msg">{{ pr.message }}</p>{% endif %}
+        {% if is_owner %}
+        <div class="prop-actions">
+          <form method="POST" action="{{ url_for('products.respond_purchase_request', req_id=pr.request_id) }}" style="display:inline">
+            <input type="hidden" name="action" value="approved" />
+            <button class="btn btn-sm btn-primary">Approve</button>
+          </form>
+          <form method="POST" action="{{ url_for('products.respond_purchase_request', req_id=pr.request_id) }}" style="display:inline">
+            <input type="hidden" name="action" value="rejected" />
+            <button class="btn btn-sm btn-danger">Reject</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Reviews -->
+    <div class="sidebar-section">
+      <h3>Reviews {% if avg_rating %}· {{ "%.1f"|format(avg_rating) }}★{% endif %}</h3>
+
+      {% if can_review and not already_reviewed %}
+      <form method="POST" action="{{ url_for('products.add_review', product_id=product.product_id) }}" class="review-form">
+        <div class="form-group">
+          <label>Your Rating</label>
+          <div class="star-picker">
+            {% for i in range(5, 0, -1) %}
+            <input type="radio" name="rating" id="star{{ i }}" value="{{ i }}" required />
+            <label for="star{{ i }}" title="{{ i }} star">★</label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="form-group">
+          <textarea name="comment" rows="2" placeholder="Share your experience…"></textarea>
+        </div>
+        <button type="submit" class="btn btn-sm btn-primary">Submit Review</button>
+      </form>
+      {% elif not is_owner and not already_reviewed %}
+      <p class="muted-note">Complete a purchase to leave a review.</p>
+      {% endif %}
+
+      {% if reviews %}
+      {% for rev in reviews %}
+      <div class="review-item">
+        <div class="review-header">
+          <a href="{{ url_for('main.profile', member_id=rev.reviewer_id) }}" class="reviewer-name">{{ rev.reviewer.name }}</a>
+          <span class="review-stars">{{ '★' * rev.rating }}{{ '☆' * (5 - rev.rating) }}</span>
+        </div>
+        {% if rev.comment %}<p class="review-comment">{{ rev.comment }}</p>{% endif %}
+        <span class="review-date">{{ rev.created_at.strftime('%d %b %Y') }}</span>
+      </div>
+      {% endfor %}
+      {% else %}
+      <p class="empty-text">No reviews yet.</p>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Login — Bazaar@IITGN{% endblock %}
+{% block content %}
+<div class="auth-container">
+  <div class="auth-card">
+    <h2 class="auth-title">Bazaar<span>@IITGN</span></h2>
+    <p class="auth-sub" style="text-align:center;margin-bottom:1.5rem;">Community Exchange — login with your IITGN email</p>
+    
+    <form method="POST">
+      <div class="form-group">
+        <label>IITGN Email</label>
+        <input type="email" name="email" required placeholder="you@iitgn.ac.in" autofocus />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" name="password" required placeholder="Password" />
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" style="margin-top:0.5rem">Log In</button>
+    </form>
+
+    <div class="auth-divider"><span>OR</span></div>
+
+    <div class="google-auth-container">
+      <a href="{{ url_for('auth.google_login') }}" class="btn-google">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/3840px-Google_%22G%22_logo.svg.png" alt="Google G" width="18">
+        Sign in with Google
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

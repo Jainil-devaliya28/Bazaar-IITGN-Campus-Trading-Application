@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}{{ member.name }} — Profile{% endblock %}
+{% block content %}
+<div class="profile-layout">
+  <div class="profile-header-card">
+    <div class="profile-avatar">{{ member.name[0]|upper }}</div>
+    <div class="profile-info">
+      <h2>{{ member.name }}</h2>
+      <p class="profile-email">{{ member.email }}</p>
+      {% if member.hostel %}
+      <p class="profile-location">📍 {{ member.hostel }}{% if member.wing %} · Wing {{ member.wing }}{% endif %}</p>
+      {% endif %}
+      {% if member.student and member.student.department %}
+      <p class="profile-dept">🎓 {{ member.student.department }}{% if member.student.year %} · Year {{ member.student.year }}{% endif %}</p>
+      {% endif %}
+    </div>
+    <div class="profile-karma">
+      <div class="karma-circle">{{ member.karma_score }}</div>
+      <div class="karma-label">⭐ Karma</div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid" style="margin-bottom:1.5rem">
+    <div class="stat-card"><span class="stat-number">{{ total_listed }}</span><span class="stat-label">Listed</span></div>
+    <div class="stat-card"><span class="stat-number">{{ total_sold }}</span><span class="stat-label">Sold</span></div>
+    {% if avg_rating %}
+    <div class="stat-card"><span class="stat-number">{{ "%.1f"|format(avg_rating) }}★</span><span class="stat-label">Avg Rating</span></div>
+    {% endif %}
+    <div class="stat-card"><span class="stat-number">{{ reviews|length }}</span><span class="stat-label">Reviews</span></div>
+  </div>
+
+  {% if is_owner %}
+  <div style="margin-bottom:1.5rem;display:flex;gap:0.75rem">
+    <a href="{{ url_for('main.edit_profile') }}" class="btn btn-outline">✏️ Edit Profile</a>
+    <a href="{{ url_for('auth.change_password') }}" class="btn btn-outline">🔒 Change Password</a>
+  </div>
+  {% endif %}
+
+  <!-- Active Listings -->
+  <div class="section">
+    <h3>Active Listings</h3>
+    {% if products %}
+    <div class="product-grid product-grid-sm">
+      {% for p in products %}
+      <div class="product-card">
+        {% if p.image_url %}
+        <img src="{{ p.image_url }}" alt="{{ p.title }}" class="product-img" />
+        {% else %}<div class="product-img-placeholder">📦</div>{% endif %}
+        <div class="product-info">
+          <span class="product-category">{{ p.category or 'Other' }}</span>
+          <h4><a href="{{ url_for('products.product_detail', product_id=p.product_id) }}">{{ p.title }}</a></h4>
+          <div class="product-footer"><strong class="price">₹{{ "%.2f"|format(p.price) }}</strong></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-text">No active listings.</p>
+    {% endif %}
+  </div>
+
+  <!-- Reviews received -->
+  <div class="section">
+    <h3>Reviews ({{ reviews|length }})</h3>
+    {% if reviews %}
+    {% for rev in reviews %}
+    <div class="review-item">
+      <div class="review-header">
+        <a href="{{ url_for('main.profile', member_id=rev.reviewer_id) }}">{{ rev.reviewer.name }}</a>
+        <span class="review-stars">{{ '★' * rev.rating }}{{ '☆' * (5 - rev.rating) }}</span>
+        <span class="review-date">{{ rev.created_at.strftime('%d %b %Y') }}</span>
+      </div>
+      {% if rev.comment %}<p class="review-comment">{{ rev.comment }}</p>{% endif %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="empty-text">No reviews yet.</p>
+    {% endif %}
+  </div>
+
+  <!-- Private: transactions + demands (owner/admin only) -->
+  {% if can_see_full %}
+  {% if txns %}
+  <div class="section">
+    <h3>Transaction History</h3>
+    <table class="table">
+      <thead><tr><th>Product</th><th>Role</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+      <tbody>
+      {% for t in txns %}
+      <tr>
+        <td>{{ t.product.title if t.product else '(deleted)' }}</td>
+        <td>{% if t.buyer_id == member.member_id %}<span class="badge badge-blue">Buyer</span>{% else %}<span class="badge badge-green">Seller</span>{% endif %}</td>
+        <td>₹{{ "%.2f"|format(t.amount) }}</td>
+        <td><span class="badge badge-{{ 'green' if t.status == 'completed' else 'yellow' }}">{{ t.status }}</span></td>
+        <td>{{ t.created_at.strftime('%d %b %Y') }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% endif %}
+
+</div>
+{% endblock %}

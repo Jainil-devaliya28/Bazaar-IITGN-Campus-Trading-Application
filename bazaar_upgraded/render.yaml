@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: bazaar-iitgn
+    runtime: python
+    buildCommand: pip install -r bazaar_upgraded/requirements.txt
+    startCommand: cd bazaar_upgraded && gunicorn app:create_app()
+    envVars:
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false

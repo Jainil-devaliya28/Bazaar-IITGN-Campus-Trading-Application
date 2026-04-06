@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}All Products — Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>All Products ({{ products.total }})</h2>
+  <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline">← Admin</a>
+</div>
+
+<form method="GET" class="filter-bar">
+  <input type="text" name="search" placeholder="Search by title…"
+         value="{{ search }}" class="filter-input" />
+  <select name="category" class="filter-select">
+    <option value="">All Categories</option>
+    {% for c in categories %}
+    <option value="{{ c }}" {% if selected_category == c %}selected{% endif %}>{{ c }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn-primary">Filter</button>
+  <a href="{{ url_for('admin.all_products') }}" class="btn btn-outline">Clear</a>
+</form>
+
+<div class="table-wrapper">
+<table class="table">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Title</th>
+      <th>Seller</th>
+      <th>Category</th>
+      <th>Price</th>
+      <th>Status</th>
+      <th>Date</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in products.items %}
+    <tr>
+      <td>{{ p.product_id }}</td>
+      <td>
+        <a href="{{ url_for('products.product_detail', product_id=p.product_id) }}">
+          {{ p.title }}
+        </a>
+      </td>
+      <td>
+        <a href="{{ url_for('main.profile', member_id=p.seller_id) }}">{{ p.seller.name }}</a>
+      </td>
+      <td>{{ p.category or '—' }}</td>
+      <td>₹{{ "%.2f"|format(p.price) }}</td>
+      <td>
+        {% if p.is_available %}
+        <span class="badge badge-green">Available</span>
+        {% else %}
+        <span class="badge badge-red">Sold</span>
+        {% endif %}
+      </td>
+      <td>{{ p.created_at.strftime('%d %b %Y') }}</td>
+      <td>
+        <form method="POST"
+              action="{{ url_for('products.delete_product', product_id=p.product_id) }}"
+              onsubmit="return confirm('[Admin] Delete {{ p.title }}?')">
+          <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" class="empty-text center">No products found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<div class="pagination">
+  {% if products.has_prev %}
+  <a href="{{ url_for('admin.all_products', page=products.prev_num, search=search, category=selected_category) }}"
+     class="btn btn-outline btn-sm">← Prev</a>
+  {% endif %}
+  <span>Page {{ products.page }} of {{ products.pages }}</span>
+  {% if products.has_next %}
+  <a href="{{ url_for('admin.all_products', page=products.next_num, search=search, category=selected_category) }}"
+     class="btn btn-outline btn-sm">Next →</a>
+  {% endif %}
+</div>
+{% endblock %}

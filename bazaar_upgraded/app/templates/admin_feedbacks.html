@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Feedbacks — Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>User Feedbacks ({{ feedbacks|length }})</h2>
+  <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline">← Admin</a>
+</div>
+
+{% if feedbacks %}
+<div class="demand-list">
+  {% for fb in feedbacks %}
+  <div class="demand-card">
+    <div class="demand-header">
+      <div>
+        <h4>{{ fb.subject or '(No subject)' }}</h4>
+        <small>from <a href="{{ url_for('main.profile', member_id=fb.member_id) }}">{{ fb.member.name }}</a>
+               · {{ fb.created_at.strftime('%d %b %Y %H:%M') }}</small>
+      </div>
+    </div>
+    <p class="demand-desc">{{ fb.message }}</p>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="empty-text">No feedbacks submitted yet.</p>
+{% endif %}
+{% endblock %}

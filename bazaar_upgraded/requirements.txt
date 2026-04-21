@@ -9,5 +9,5 @@ authlib>=1.2.0
 Pillow>=10.0.0
 requests>=2.31.0
 PyMySQL==1.1.1
-gunicorn
+# gunicorn
 Werkzeug>=3.0.0

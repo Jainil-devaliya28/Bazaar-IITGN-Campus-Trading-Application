@@ -89,7 +89,9 @@ It is designed to replace scattered WhatsApp groups and email threads with a sin
 
 ### AI and Smart Features
 
-- Automatic tag suggestions based on listing title and description.
+- Gemini-powered AI analyzes each listing's title and description to suggest a marketplace category, generate searchable tags, and return a classification confidence score.
+- Before analysis, the NLP pipeline normalizes listing text, removes punctuation and common stop words, and applies stemming to improve the quality of category and tag suggestions.
+- AI suggestions use the configured `GEMINI_MODEL` and `GEMINI_API_KEY` values from `.env`, with a safe `Other` category fallback when classification is unavailable.
 - Price-insight widget provides campus-level pricing context for buyers and sellers.
 - Urgent sale toggle highlights urgent listings.
 
@@ -122,7 +124,22 @@ It is designed to replace scattered WhatsApp groups and email threads with a sin
 pip install -r requirements.txt
 ```
 
-2. Set environment variables in `.env`.
+2. Create a `.env` file and set the required environment variables:
+
+```env
+SECRET_KEY=replace-with-a-random-secret
+DB_USER=your-database-user
+DB_PASSWORD=your-database-password
+DB_HOSTING=your-database-host
+DB_PORT=3306
+DB_NAME=your-database-name
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_MODEL=gemini-3.6-flash
+```
+
+`GEMINI_API_KEY` authenticates Gemini requests and `GEMINI_MODEL` selects the model used for automatic listing tags and categories. Do not commit `.env` or expose the API key.
 
 3. Run migrations if needed:
 

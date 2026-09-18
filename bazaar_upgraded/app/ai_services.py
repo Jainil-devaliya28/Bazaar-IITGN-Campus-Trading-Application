@@ -3,116 +3,145 @@ bazaar/app/ai_services.py
 
 AI Features:
   - ai_suggest_tags_and_category(title, description) → {category, tags, confidence}
-  - get_price_insight(category)                       → {avg, median, min, max, count}
+  - get_price_insight(category)                         → {avg, median, min, max, count}
 
-The tagging uses a keyword-matching approach that is lightweight, zero-cost,
-and architecture-ready for replacing with a real AI/ML call later.
-Price insights compute from live DB data.
+Powered by the Google Gemini API with basic NLP text preprocessing (cleaning, stopwords, stemming).
 """
 
+import os
+import re
 import statistics
 from decimal import Decimal
+from typing import List
+
+from dotenv import load_dotenv
+from google import genai
+from google.genai import types
+from pydantic import BaseModel, Field
+
+# NLTK imports for basic NLP preprocessing
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
+
+# Ensure required NLTK data packages are available
+for package in ('punkt', 'stopwords'):
+    try:
+        nltk.data.find(f'tokenizers/{package}' if package == 'punkt' else f'corpora/{package}')
+    except LookupError:
+        nltk.download(package, quiet=True)
 
 
-# ── Category keyword map ──────────────────────────────────────────────────────
-_CATEGORY_KEYWORDS = {
-    'Books': [
-        'book', 'textbook', 'novel', 'notes', 'guide', 'jee', 'neet', 'physics',
-        'chemistry', 'maths', 'mathematics', 'biology', 'engineering', 'reference',
-        'allen', 'fiitjee', 'dc pandey', 'irodov', 'hc verma', 'resnick',
-        'mcq', 'study material', 'coaching', 'ncert', 'cbse',
-    ],
-    'Electronics': [
-        'laptop', 'phone', 'mobile', 'charger', 'cable', 'earphone', 'headphone',
-        'tablet', 'ipad', 'keyboard', 'mouse', 'monitor', 'speaker', 'camera',
-        'hard drive', 'ssd', 'pendrive', 'usb', 'powerbank', 'power bank',
-        'calculator', 'projector', 'router', 'wifi', 'smartwatch',
-    ],
-    'Cycles': [
-        'cycle', 'bicycle', 'bike', 'mtb', 'gear', 'geared', 'cycling',
-        'trek', 'hercules', 'atlas', 'BSA', 'puncture', 'helmet',
-    ],
-    'Clothing': [
-        'shirt', 'jeans', 'kurta', 't-shirt', 'tshirt', 'jacket', 'hoodie',
-        'sweater', 'shoes', 'sandals', 'clothing', 'clothes', 'dress',
-        'formal', 'casual', 'trouser', 'coat', 'blazer',
-    ],
-    'Stationery': [
-        'pen', 'pencil', 'notebook', 'file', 'folder', 'highlighter', 'marker',
-        'stapler', 'scissors', 'ruler', 'stationery', 'A4', 'paper',
-        'sticky notes', 'whiteboard',
-    ],
-    'Sports': [
-        'cricket', 'football', 'badminton', 'tennis', 'basketball', 'volleyball',
-        'gym', 'dumbbell', 'weights', 'mat', 'yoga', 'skipping', 'racket',
-        'bat', 'ball', 'sports', 'fitness',
-    ],
-    'Hostel Gear': [
-        'mattress', 'bedsheet', 'blanket', 'pillow', 'bucket', 'mug',
-        'fan', 'lamp', 'bulb', 'extension', 'hostel', 'room', 'curtain',
-        'hangers', 'shelf', 'rack', 'mirror', 'lock', 'cooler', 'heater',
-        'iron', 'ironing', 'kettle',
-    ],
-}
+# ── Allowed Categories & NLP Setup ──────────────────────────────────────────
+VALID_CATEGORIES = [
+    'Books',
+    'Electronics',
+    'Cycles',
+    'Clothing',
+    'Stationery',
+    'Sports',
+    'Hostel Gear',
+    'Other',
+]
+
+stemmer = PorterStemmer()
+stop_words = set(stopwords.words('english'))
 
 
-def _text_lower(*parts) -> str:
-    return ' '.join(str(p) for p in parts if p).lower()
+def preprocess_text(text: str) -> str:
+    """
+    Basic NLP preprocessing pipeline:
+    1. Lowercase text
+    2. Remove punctuation/special characters
+    3. Tokenize and remove stop words (e.g., 'the', 'is', 'at')
+    4. Apply Porter stemming (e.g., 'running' -> 'run', 'books' -> 'book')
+    """
+    if not text:
+        return ""
+    
+    # 1. Lowercase & strip symbols using regex
+    text = text.lower()
+    text = re.sub(r'[^\w\s]', ' ', text)
+    
+    # 2. Tokenize manually by splitting whitespace (lightweight & dependency-free)
+    tokens = text.split()
+    
+    # 3. Filter stopwords and apply stemming
+    processed_tokens = [
+        stemmer.stem(token) for token in tokens 
+        if token not in stop_words and len(token) > 1
+    ]
+    
+    return ' '.join(processed_tokens)
+
+
+# ── Pydantic Schema for Strict Output Formatting ─────────────────────────────
+class ItemMetadata(BaseModel):
+    category: str = Field(
+        description=f"Must be strictly chosen from one of these categories: {', '.join(VALID_CATEGORIES)}"
+    )
+    tags: List[str] = Field(
+        description="A list of 3 to 6 helpful lowercase keywords/tags extracted from the title and description."
+    )
+    confidence: float = Field(
+        description="A confidence score between 0.0 and 1.0 indicating classification certainty."
+    )
+
+
+# Load AI settings even when this module is imported outside the Flask app.
+load_dotenv()
+gemini_api_key = os.environ.get('GEMINI_API_KEY')
+gemini_model = os.environ.get('GEMINI_MODEL')
+client = genai.Client(api_key=gemini_api_key)
 
 
 def ai_suggest_tags_and_category(title: str, description: str = '') -> dict:
     """
-    Analyse title + description and return suggested category + tags.
+    Preprocesses the raw text via basic NLP, then analyzes it using Gemini 
+    to determine the category, tags, and confidence score.
+    """
+    # Run basic NLP preprocessing on inputs to clean noise
+    clean_title = preprocess_text(title)
+    clean_desc = preprocess_text(description)
 
-    Returns:
-        {
-            'category': str | None,
-            'tags': [str, ...],
-            'confidence': 'high' | 'medium' | 'low',
-            'ai_powered': False   # set to True when real AI is wired in
+    prompt = f"""
+    Analyze the following preprocessed marketplace item listing. Classify it into the best-matching category, 
+    extract smart keyword tags for searching, and provide a confidence level.
+    
+    Allowed Categories: {', '.join(VALID_CATEGORIES)}
+    
+    Cleaned Item Title: {clean_title}
+    Cleaned Item Description: {clean_desc}
+    (Original Title was: {title})
+    """
+
+    try:
+        response = client.models.generate_content(
+            model=gemini_model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=ItemMetadata,
+                temperature=0.1,
+            ),
+        )
+        
+        result = response.parsed
+        category = result.category if result.category in VALID_CATEGORIES else 'Other'
+        
+        return {
+            'category': category,
+            'tags': result.tags,
+            'confidence': float(result.confidence),
         }
 
-    Architecture note:
-        To upgrade to a real AI model, replace the body of this function with an
-        API call (e.g. OpenAI vision / text classification) and return the same
-        dict structure. The rest of the codebase stays unchanged.
-    """
-    combined = _text_lower(title, description)
-    scores = {}
-    matched_keywords = []
-
-    for category, keywords in _CATEGORY_KEYWORDS.items():
-        hits = [kw for kw in keywords if kw in combined]
-        if hits:
-            scores[category] = len(hits)
-            matched_keywords.extend(hits)
-
-    if not scores:
-        return {'category': None, 'tags': [], 'confidence': 'low', 'ai_powered': False}
-
-    best_category = max(scores, key=scores.get)
-    best_score    = scores[best_category]
-
-    # Build suggested tags from the matched keywords (deduplicated, ≤ 6)
-    seen = set()
-    tags = []
-    for kw in matched_keywords:
-        if kw not in seen:
-            seen.add(kw)
-            tags.append(kw)
-        if len(tags) >= 6:
-            break
-
-    confidence = 'high' if best_score >= 3 else ('medium' if best_score >= 1 else 'low')
-
-    return {
-        'category':   best_category,
-        'tags':       tags,
-        'confidence': confidence,
-        'ai_powered': False,   # flip to True when real AI is integrated
-    }
-
-
+    except Exception as e:
+        print(f"Gemini API Error in ai_suggest_tags_and_category: {e}")
+        return {
+            'category': 'Other',
+            'tags': [],
+            'confidence': 0.0,
+        }
 def get_price_insight(category: str) -> dict | None:
     """
     Query the live DB for price statistics of available listings in a category.
